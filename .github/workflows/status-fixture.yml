@@ -1,0 +1,33 @@
+name: Status provenance fixture
+on:
+  workflow_dispatch:
+    inputs:
+      head:
+        required: true
+        type: string
+      fixture:
+        required: true
+        type: choice
+        options: [reject, accept]
+permissions: {}
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ inputs.head }}
+          FIXTURE: ${{ inputs.fixture }}
+        run: |
+          [[ "$HEAD" =~ ^[a-f0-9]{40}$ ]] || exit 1
+          case "$FIXTURE" in
+            reject) STATE=failure ;;
+            accept) STATE=success ;;
+            *) exit 1 ;;
+          esac
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" \
+            -f context='Fixture Status' -f state="$STATE" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --jq '{id,context,state,creator:.creator.login}'
